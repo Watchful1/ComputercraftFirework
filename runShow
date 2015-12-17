@@ -94,3 +94,4 @@ launchFirewok(firework)
 --http://www.minecraftupdates.com/fireworks
 --color interpreter
 --http://minecraft.gamepedia.com/Firework_Rocket
+--B + 256 * G + 65536 * R = 16711680
