@@ -1,0 +1,96 @@
+--lua
+function empty(item)
+	return item == nil or item == "" or item == {}
+end
+
+function newStack()
+	return {""}
+end
+
+function addString(stack, s)
+	table.insert(stack, s)
+	for i=table.getn(stack)-1, 1, -1 do
+		if string.len(stack[i]) > string.len(stack[i+1]) then
+			break
+		end
+		stack[i] = stack[i] .. table.remove(stack)
+	end
+end
+
+function append(stack, item, default, prefix, postfix, prefixwithcomma)
+	item = (item and item or default)
+	if empty(item) then
+		return false
+	end
+	if prefixwithcomma then
+		addString(stack, ",")
+	end
+	if not empty(prefix) then
+		addString(stack, prefix)
+	end
+	if type(item) == "table" then
+		subItemPrev = false
+		for i,subItem in ipairs(item) do
+			subItemPrev = append(shellStr, subItem, "", "", "", subItemPrev)
+		end
+	else
+		addString(stack, item)
+	end
+	if not empty(postfix) then
+		addString(stack, postfix)
+	end
+	return true
+end
+
+function runSummon(string)
+	commands.execAsync("summon FireworksRocketEntity "..string)
+end
+
+function launchFirewok(firework)
+	if not type(firework) == "table" then
+		print("Can't launch a "..type(firework))
+		return
+	end
+
+	fireStr = newStack()
+	append(fireStr, firework["x"], "~", "", " ")
+	append(fireStr, firework["y"], "~", "", " ")
+	append(fireStr, firework["z"], "~", "", " ")
+
+	append(fireStr, "{")
+
+	append(fireStr, firework["LifeTime"], "20", "LifeTime:")
+
+	append(fireStr, ",FireworksItem:{id:42,tag:{Fireworks:{Explosions:[")
+	if firework["shells"] then
+		shellsStack = {}
+		for i,shell in ipairs(firework["shells"]) do
+			shellStr = newStack()
+			append(shellStr, "{")
+			item = append(shellStr, shell["Type"], "", "Type:")
+			item = append(shellStr, shell["Flicker"], "", "Flicker:", "", item)
+			item = append(shellStr, shell["Trail"], "", "Trail:", "", item)
+			item = append(shellStr, shell["Colors"], "", "Colors:[", "]", item)
+			append(shellStr, shell["FadeColors"], "", "FadeColors:[", "]", item)
+			append(shellStr, "}")
+			table.insert(shellsStack, table.concat(shellStr))
+		end
+		append(fireStr, table.concat(shellsStack, ","))
+	else
+		append(fireStr, "{Colors:[16777215]}")
+	end
+	append(fireStr, "]}}}")
+
+	append(fireStr, "}")
+
+	print(table.concat(fireStr))
+	runSummon(table.concat(fireStr))
+end
+
+shell1 = {Flicker="1",Trail="1",Type="1",Colors={"16711680","4607"}}
+firework = {LifeTime="20",shells={shell1}}
+launchFirewok(firework)
+
+--http://www.minecraftupdates.com/fireworks
+--color interpreter
+--http://minecraft.gamepedia.com/Firework_Rocket
