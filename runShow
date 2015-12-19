@@ -1,4 +1,23 @@
 --lua
+standardColors = {
+	black={30,27,27},
+	red={179,49,44},
+	green={59,81,26},
+	brown={81,48,26},
+	blue={37,49,146},
+	purple={123,47,190},
+	cyan={40,118,151},
+	lightgray={171,171,171},
+	gray={67,67,67},
+	pink={216,129,152},
+	lime={65,205,52},
+	yellow={222,207,42},
+	lightblue={102,137,211},
+	magenta={195,84,205},
+	orange={235,136,68},
+	white={240,240,240}
+}
+
 function empty(item)
 	return item == nil or item == "" or item == {}
 end
@@ -46,6 +65,26 @@ function runSummon(string)
 	commands.execAsync("summon FireworksRocketEntity "..string)
 end
 
+function translateColors(colors)
+	if colors == nil then
+		return nil
+	elseif type(colors) == "table" then
+		translated = {}
+		for i,color in ipairs(colors) do
+			table.insert(translated, translateColors(color))
+		end
+		return translated
+	else
+		if standardColors[colors] ~= nil then
+			return tostring(65536 * standardColors[colors][1] + 256 * standardColors[colors][2] + standardColors[colors][3])
+		elseif string.len(colors) <= 8 and tonumber(colors) ~= nil then
+			return colors
+		end
+		print("Couldn't convert to color: "..colors)
+		return "16777215"
+	end
+end
+
 function launchFirewok(firework)
 	if not type(firework) == "table" then
 		print("Can't launch a "..type(firework))
@@ -70,8 +109,8 @@ function launchFirewok(firework)
 			item = append(shellStr, shell["Type"], "", "Type:")
 			item = append(shellStr, shell["Flicker"], "", "Flicker:", "", item)
 			item = append(shellStr, shell["Trail"], "", "Trail:", "", item)
-			item = append(shellStr, shell["Colors"], "", "Colors:[", "]", item)
-			append(shellStr, shell["FadeColors"], "", "FadeColors:[", "]", item)
+			item = append(shellStr, translateColors(shell["Colors"]), "", "Colors:[", "]", item)
+			append(shellStr, translateColors(shell["FadeColors"]), "", "FadeColors:[", "]", item)
 			append(shellStr, "}")
 			table.insert(shellsStack, table.concat(shellStr))
 		end
@@ -87,11 +126,6 @@ function launchFirewok(firework)
 	runSummon(table.concat(fireStr))
 end
 
-shell1 = {Flicker="1",Trail="1",Type="1",Colors={"16711680","4607"}}
+shell1 = {Colors={"red"}}
 firework = {LifeTime="20",shells={shell1}}
 launchFirewok(firework)
-
---http://www.minecraftupdates.com/fireworks
---color interpreter
---http://minecraft.gamepedia.com/Firework_Rocket
---B + 256 * G + 65536 * R = 16711680
