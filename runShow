@@ -1,4 +1,18 @@
 --lua
+args = {...}
+if table.getn(args) < 1 then
+	print("No show passed")
+	return
+end
+showname = args[1]
+if not fs.exists(showname) then
+	print("Show does not exist")
+	return
+end
+
+math.randomseed(os.time()*1000)
+math.random(2)
+
 standardColors = {
 	black={30,27,27},
 	red={179,49,44},
@@ -18,8 +32,22 @@ standardColors = {
 	white={240,240,240}
 }
 
+vars = {}
+
 function empty(item)
 	return item == nil or item == "" or item == {}
+end
+
+function strsplit(inputstr, sep)
+	if sep == nil then
+		sep = "%s"
+	end
+	local t={} ; i=1
+	for str in string.gmatch(inputstr, "([^"..sep.."]+)") do
+		t[i] = str
+		i = i + 1
+	end
+	return t
 end
 
 function newStack()
@@ -98,7 +126,7 @@ function launchFirewok(firework)
 
 	append(fireStr, "{")
 
-	append(fireStr, firework["LifeTime"], "20", "LifeTime:")
+	append(fireStr, firework["lifetime"], "20", "LifeTime:")
 
 	append(fireStr, ",FireworksItem:{id:42,tag:{Fireworks:{Explosions:[")
 	if firework["shells"] then
@@ -106,11 +134,11 @@ function launchFirewok(firework)
 		for i,shell in ipairs(firework["shells"]) do
 			shellStr = newStack()
 			append(shellStr, "{")
-			item = append(shellStr, shell["Type"], "", "Type:")
-			item = append(shellStr, shell["Flicker"], "", "Flicker:", "", item)
-			item = append(shellStr, shell["Trail"], "", "Trail:", "", item)
-			item = append(shellStr, translateColors(shell["Colors"]), "", "Colors:[", "]", item)
-			append(shellStr, translateColors(shell["FadeColors"]), "", "FadeColors:[", "]", item)
+			item = append(shellStr, shell["type"], "", "Type:")
+			item = append(shellStr, shell["flicker"], "", "Flicker:", "", item)
+			item = append(shellStr, shell["trail"], "", "Trail:", "", item)
+			item = append(shellStr, translateColors(shell["colors"]), "", "Colors:[", "]", item)
+			append(shellStr, translateColors(shell["fadecolors"]), "", "FadeColors:[", "]", item)
 			append(shellStr, "}")
 			table.insert(shellsStack, table.concat(shellStr))
 		end
@@ -126,6 +154,57 @@ function launchFirewok(firework)
 	runSummon(table.concat(fireStr))
 end
 
-shell1 = {Colors={"red"}}
-firework = {LifeTime="20",shells={shell1}}
-launchFirewok(firework)
+function pickRand(val)
+	if string.find(val, "|") then
+		options = strsplit(val, "|")
+		return options[math.random(table.getn(options))]
+	else
+		return nil
+	end
+end
+
+function evalVar(val)
+	val = pickRand(val) or val
+	if vars[val] then
+		return evalVar(vars[val])
+	else
+		return val
+	end
+end
+
+showFile = fs.open(showname, "r")
+
+fireworks = {}
+while true do
+	line = showFile.readLine()
+	if line == nil then break end
+
+	equals = string.find(line, "=")
+	if equals then
+		vars[string.sub(line, 1, equals-2)] = string.sub(line, equals+2, string.len(line))
+	else
+		firework = {}
+		for i,word in ipairs(strsplit(line)) do
+			element = strsplit(word, ":")
+			firework[element[1]] = element[2]
+		end
+		table.insert(fireworks, firework)
+	end
+end
+
+for i,firework in ipairs(fireworks) do
+	for j in pairs(firework) do
+		firework[j] = evalVar(firework[j])
+		print(j," ",firework[j])
+		if firework[j] == "_" then table.remove(firework, j) end
+		print(j," ",firework[j])
+	end
+	print()
+end
+print(textutils.serialize(fireworks))
+
+--shell1 = {colors={"red"}}
+--firework = {lifetime="20",shells={shell1}}
+--launchFirewok(firework)
+
+showFile.close()
