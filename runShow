@@ -32,6 +32,24 @@ standardColors = {
 	white={240,240,240}
 }
 
+shellWords = {
+	type=true,
+	twinkle=true,
+	trail=true,
+	color=true,
+	fadecolor=true
+}
+
+reservedWords = {
+	twinkle="flicker:1",
+	trail="trail:1",
+	small="type:0",
+	large="type:1",
+	star="type:2",
+	creeper="type:3",
+	burst="type:4"
+}
+
 vars = {}
 
 function empty(item)
@@ -137,8 +155,8 @@ function launchFirewok(firework)
 			item = append(shellStr, shell["type"], "", "Type:")
 			item = append(shellStr, shell["flicker"], "", "Flicker:", "", item)
 			item = append(shellStr, shell["trail"], "", "Trail:", "", item)
-			item = append(shellStr, translateColors(shell["colors"]), "", "Colors:[", "]", item)
-			append(shellStr, translateColors(shell["fadecolors"]), "", "FadeColors:[", "]", item)
+			item = append(shellStr, translateColors(shell["color"]), "", "Colors:[", "]", item)
+			append(shellStr, translateColors(shell["fadecolor"]), "", "FadeColors:[", "]", item)
 			append(shellStr, "}")
 			table.insert(shellsStack, table.concat(shellStr))
 		end
@@ -154,17 +172,19 @@ function launchFirewok(firework)
 	runSummon(table.concat(fireStr))
 end
 
-function pickRand(val)
+function evalVar(val)
 	if string.find(val, "|") then
 		options = strsplit(val, "|")
-		return options[math.random(table.getn(options))]
-	else
-		return nil
+		val = options[math.random(table.getn(options))]
 	end
-end
+	if string.find(val, "&") then
+		options = strsplit(val, "&")
+		for i,option in ipairs(options) do
+			options[i] = evalVar(option)
+		end
+		return options
+	end
 
-function evalVar(val)
-	val = pickRand(val) or val
 	if vars[val] then
 		return evalVar(vars[val])
 	else
@@ -172,9 +192,11 @@ function evalVar(val)
 	end
 end
 
+
+
 showFile = fs.open(showname, "r")
 
-fireworks = {}
+fireworkStrs = {}
 while true do
 	line = showFile.readLine()
 	if line == nil then break end
@@ -183,28 +205,103 @@ while true do
 	if equals then
 		vars[string.sub(line, 1, equals-2)] = string.sub(line, equals+2, string.len(line))
 	else
-		firework = {}
-		for i,word in ipairs(strsplit(line)) do
-			element = strsplit(word, ":")
-			firework[element[1]] = element[2]
-		end
-		table.insert(fireworks, firework)
+		table.insert(fireworkStrs, line)
 	end
 end
 
-for i,firework in ipairs(fireworks) do
-	for j in pairs(firework) do
-		firework[j] = evalVar(firework[j])
-		print(j," ",firework[j])
-		if firework[j] == "_" then table.remove(firework, j) end
-		print(j," ",firework[j])
+fireworks = {}
+for i,fireworkStr in ipairs(fireworkStrs) do
+	firework = {}
+	firework["shells"] = {}
+	shell = {}
+	for i,word in ipairs(strsplit(fireworkStr)) do
+		if word == "|" then
+			table.insert(firework["shells"], shell)
+			shell = {}
+		else
+			if reservedWords[word] then
+				word = reservedWords[word]
+			end
+			name,value = strsplit(word, ":")
+			value = evalVar(value)
+			if type(value) == "table" then
+				if name == "color" then
+
+				end
+			else
+				if shellWords[name] then
+					shell[name] = value
+				else
+					firework[name] = evalue
+				end
+			end
+		end
 	end
-	print()
+	table.insert(firework["shells"], shell)
 end
 print(textutils.serialize(fireworks))
 
---shell1 = {colors={"red"}}
+--shell1 = {color={"red"}}
 --firework = {lifetime="20",shells={shell1}}
 --launchFirewok(firework)
 
 showFile.close()
+
+--[[
+Supported firework words
+
+pos
+	format: word:argument
+	argument should be three comma seperated integers
+	the integers can be prefixed with a ~ to be reletive to the computer
+
+	coordinates of launch, can be relative
+	supports: or,and, variables
+	defaults to computer location
+
+
+lifetime
+	format: word:argument
+	argument can be any integer
+
+	number of ticks until the rocket explodes
+	defaults to 20
+
+
+twinkle
+	format: word
+
+	whether the firework has a twinkle effect
+
+
+trail
+	format: word
+
+	whether the firework has a trail effect
+
+
+color
+	format: word:argument
+	argument can be a predefined color below or 3 comma seperated integers representing a RGB color code
+
+	predefined colors: black,red,green,brown,blue,purple,cyan,lightgray,gray,pink,lime,yellow,lightblue,magenta,orange,white
+	supports: or,and,variables
+	defaults to white
+
+
+fadecolor
+	format: word:argument
+	argument can be a predefined color below or 3 comma seperated integers representing a RGB color code
+
+	predefined colors: black,red,green,brown,blue,purple,cyan,lightgray,gray,pink,lime,yellow,lightblue,magenta,orange,white
+	supports: or,and,variables
+	defaults to white
+
+
+type
+	format: word
+
+	the type of explosion, must be one of the following
+	small,large,star,creeper,burst
+	defaults to small
+]]
